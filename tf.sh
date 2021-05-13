@@ -1,14 +1,17 @@
-#!/usr/env/bin bash
+#!/usr/bin/env bash
 
 set -e
 
 
 TF_PARALLELISM=${TF_PARALLELISM:-10}
 TF_STATE_BUCKET=${TF_STATE_BUCKET:-}
+TF_STATE_DYNAMODB_TABLE=${TF_STATE_DYNAMODB_TABLE:-}
 TF_STATE_PATH=${TF_STATE_PATH:-}
 TF_STATE_FILE_NAME=${TF_STATE_FILE_NAME:-main.tfstate}
 TF_TERRAFORM_EXECUTABLE=${TF_TERRAFORM_EXECUTABLE:-terraform}
 TF_ENVIRONMENT_ID=${TF_ENVIRONMENT_ID:-}
+TF_AUTO_APPLY_SAVED_PLAN=${TF_AUTO_APPLY_SAVED_PLAN:-}
+TF_VAR_terraform_state_location=${TF_VAR_terraform_state_location:-}
 
 [ -e ./.terraform_executable ] && export TF_TERRAFORM_EXECUTABLE="$(cat .terraform_executable)"
 
@@ -18,11 +21,21 @@ then
   echo "Wrapper will attempt to pick defaults and setup a correct bucket"
   echo "All script argumetns will be passed to Terraform"
   echo ""
+  echo "WARNING: If we are applying changes, do not ask for interactive approval"
+  echo ""
   echo "Example:"
   echo "tf plan"
-  echo "tf destroy"
+  echo "tf plan -destroy"
+  echo "tf apply"
+  echo "tf apply -destroy"
   echo ""
   echo "tf will indentify your env based on current AWS account id and region"
+  echo ""
+  echo "For apply saved plan please set TF_AUTO_APPLY_SAVED_PLAN variable with any value"
+  echo "Example:"
+  echo "TF_AUTO_APPLY_SAVED_PLAN=true ./tf.sh apply plan.tfplan"
+  echo ""
+  echo "WARNING: This plan will be applied without any confirmation"
   echo ""
   exit 0
 fi
@@ -58,6 +71,11 @@ if [ -z "${TF_STATE_BUCKET}" ]; then
     export TF_STATE_BUCKET="terraform-state-${HASHED_ENVIRONMENT_ID}"
 fi
 
+if [ -z "${TF_STATE_DYNAMODB_TABLE}" ]; then
+    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | sha1sum | awk '{print $1}')
+    export TF_STATE_DYNAMODB_TABLE="terraform-state-${HASHED_ENVIRONMENT_ID}"
+fi
+
 if [ -z "${TF_STATE_PATH}" ]; then
     # Check if we are in git repo
     GIT_REPO_TEST=$(git rev-parse --git-dir 2> /dev/null || true)
@@ -83,15 +101,23 @@ if [ -z "${TF_STATE_PATH}" ]; then
     export TF_STATE_PATH="terraform/${REPO_NAME}/${TF_STATE_FILE_NAME}"
 fi
 
+if [ -z "${TF_VAR_terraform_state_location}" ]; then
+    # Set terraform variable terraform_state_location for tags
+    export TF_VAR_terraform_state_location="s3://${TF_STATE_BUCKET}/${TF_STATE_PATH}"
+fi
+
 echo "Using remote state s3://${TF_STATE_BUCKET}/${TF_STATE_PATH}"
+echo "Using lock table ${TF_STATE_DYNAMODB_TABLE}"
 
 set -x
 
-${TF_TERRAFORM_EXECUTABLE} init -backend-config "key=${TF_STATE_PATH}" -backend-config "bucket=${TF_STATE_BUCKET}" -backend-config "region=${AWS_DEFAULT_REGION}"
+${TF_TERRAFORM_EXECUTABLE} init -backend-config "key=${TF_STATE_PATH}" -backend-config "bucket=${TF_STATE_BUCKET}" -backend-config "region=${AWS_DEFAULT_REGION}" -backend-config "dynamodb_table=${TF_STATE_DYNAMODB_TABLE}" -backend-config "encrypt=true"
 
-# If we are applying changes, do not ask for interactive approval
-[ $1 == "apply" ] && export OPTIONS="-auto-approve"
 # figure out which env file to use
-[ -e ./${TF_ENVIRONMENT_ID}.tfvars ] && export VAR_FILE="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
+if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
+  export TF_CLI_ARGS_plan="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
+  # If we are not applying saving plan, add -var-file
+  [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ] && export TF_CLI_ARGS_apply="-var-file=./${TF_ENVIRONMENT_ID}.tfvars -auto-approve"
+fi
 
-${TF_TERRAFORM_EXECUTABLE} $* ${VAR_FILE} ${OPTIONS}
+${TF_TERRAFORM_EXECUTABLE} $*
