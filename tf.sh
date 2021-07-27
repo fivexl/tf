@@ -116,6 +116,7 @@ ${TF_TERRAFORM_EXECUTABLE} init -backend-config "key=${TF_STATE_PATH}" -backend-
 # figure out which env file to use
 if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
   export TF_CLI_ARGS_plan="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
+  export TF_CLI_ARGS_import="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
   # If we are not applying saving plan, add -var-file
   [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ] && export TF_CLI_ARGS_apply="-var-file=./${TF_ENVIRONMENT_ID}.tfvars -auto-approve"
 fi
