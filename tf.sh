@@ -21,7 +21,6 @@ if [ -f tf.sh.env ]; then
     export $(cat tf.sh.env | grep -v '#' | awk '/=/ {print $1}')
 fi
 
-if [ -z "${TF_CLEAN_DOT_STATE_FILE}" ] ; then TF_CLEAN_DOT_STATE_FILE={$TF_CLEAN_DOT_STATE_FILE:-} ; fi
 if [ -z "${TF_DATA_DIR_PER_ENV}" ] ; then TF_DATA_DIR_PER_ENV=${TF_DATA_DIR_PER_ENV:-} ; fi
 if [ -z "${HASH_COMMAND}" ] ; then HASH_COMMAND=${HASH_COMMAND:-sha1sum} ; fi
 
