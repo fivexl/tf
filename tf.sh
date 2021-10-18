@@ -118,7 +118,7 @@ if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
   # If we are not applying saving plan, add -var-file
   if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
     export TF_CLI_ARGS="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
-    # Add -auto-approve for any apply commands
+    # If we are applying changes, do not ask for interactive approval. Work for any apply commands (-destroy, -refresh-only and etc)
     export TF_CLI_ARGS_apply="-var-file=./${TF_ENVIRONMENT_ID}.tfvars -auto-approve"
   fi
 fi
