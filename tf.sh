@@ -12,8 +12,27 @@ TF_TERRAFORM_EXECUTABLE=${TF_TERRAFORM_EXECUTABLE:-terraform}
 TF_ENVIRONMENT_ID=${TF_ENVIRONMENT_ID:-}
 TF_AUTO_APPLY_SAVED_PLAN=${TF_AUTO_APPLY_SAVED_PLAN:-}
 TF_VAR_terraform_state_location=${TF_VAR_terraform_state_location:-}
+TF_SKIP_BACKEND_INIT=${TF_SKIP_BACKEND_INIT:-}
 
+# Local tf.sh.env
+if [ -f tf.sh.env ]; then
+    # Load defauilt Environment Variables
+    echo "Set default from tf.sh.env"
+    export $(cat tf.sh.env | grep -v '#' | awk '/=/ {print $1}')
+fi
+
+if [ -z "${TF_CLEAN_DOT_STATE_FILE}" ] ; then TF_CLEAN_DOT_STATE_FILE={$TF_CLEAN_DOT_STATE_FILE:-} ; fi
+if [ -z "${TF_DATA_DIR_PER_ENV}" ] ; then TF_DATA_DIR_PER_ENV=${TF_DATA_DIR_PER_ENV:-} ; fi
+if [ -z "${HASHE_COMMAND}" ] ; then HASHE_COMMAND=${HASHE_COMMAND:-sha1sum} ; fi
+
+# Set terraform version
 [ -e ./.terraform_executable ] && export TF_TERRAFORM_EXECUTABLE="$(cat .terraform_executable)"
+
+# Clean .terraform/terraform.tfstate 
+[ -n "${TF_CLEAN_DOT_STATE_FILE}" ] && rm -rf .terraform/terraform.tfstate
+
+# Enable TF_DATA_DIR_PER_ENV
+[ -n "${TF_DATA_DIR_PER_ENV}" ] && export TF_DATA_DIR=".terraform.${TF_ENVIRONMENT_ID}"
 
 if [ "$#" -eq 0 ] || [ "$*" == "-h" ] || [ "$*" == "-h" ]
 then
@@ -67,12 +86,12 @@ if [ -z "${TF_STATE_BUCKET}" ]; then
     # Use hashed environment id to avoid account id/region disclosure via S3 DNS name
     # in this way it is hard to predict the bucket name and attacker won't be able to
     # setup buckets in advance to capture your state file
-    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | sha1sum | awk '{print $1}')
+    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASHE_COMMAND}" | awk '{print $1}')
     export TF_STATE_BUCKET="terraform-state-${HASHED_ENVIRONMENT_ID}"
 fi
 
 if [ -z "${TF_STATE_DYNAMODB_TABLE}" ]; then
-    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | sha1sum | awk '{print $1}')
+    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASHE_COMMAND}" | awk '{print $1}')
     export TF_STATE_DYNAMODB_TABLE="terraform-state-${HASHED_ENVIRONMENT_ID}"
 fi
 
@@ -111,7 +130,13 @@ echo "Using lock table ${TF_STATE_DYNAMODB_TABLE}"
 
 set -x
 
-${TF_TERRAFORM_EXECUTABLE} init -backend-config "key=${TF_STATE_PATH}" -backend-config "bucket=${TF_STATE_BUCKET}" -backend-config "region=${AWS_DEFAULT_REGION}" -backend-config "dynamodb_table=${TF_STATE_DYNAMODB_TABLE}" -backend-config "encrypt=true"
+# Allow to skip terraform init with new backend
+if [ -z "${TF_SKIP_BACKEND_INIT}" ]; then
+    ${TF_TERRAFORM_EXECUTABLE} init -backend-config "key=${TF_STATE_PATH}" -backend-config "bucket=${TF_STATE_BUCKET}" -backend-config "region=${AWS_DEFAULT_REGION}" -backend-config "dynamodb_table=${TF_STATE_DYNAMODB_TABLE}" -backend-config "encrypt=true"
+else
+    echo "Skipping terraform backend initialization.."
+fi
+
 
 # figure out which env file to use
 if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
