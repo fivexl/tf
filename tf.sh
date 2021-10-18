@@ -28,9 +28,6 @@ if [ -z "${HASHE_COMMAND}" ] ; then HASHE_COMMAND=${HASHE_COMMAND:-sha1sum} ; fi
 # Set terraform version
 [ -e ./.terraform_executable ] && export TF_TERRAFORM_EXECUTABLE="$(cat .terraform_executable)"
 
-# Clean .terraform/terraform.tfstate 
-[ -n "${TF_CLEAN_DOT_STATE_FILE}" ] && rm -rf .terraform/terraform.tfstate
-
 # Enable TF_DATA_DIR_PER_ENV
 [ -n "${TF_DATA_DIR_PER_ENV}" ] && export TF_DATA_DIR=".terraform.${TF_ENVIRONMENT_ID}"
 
