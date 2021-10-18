@@ -23,7 +23,7 @@ fi
 
 if [ -z "${TF_CLEAN_DOT_STATE_FILE}" ] ; then TF_CLEAN_DOT_STATE_FILE={$TF_CLEAN_DOT_STATE_FILE:-} ; fi
 if [ -z "${TF_DATA_DIR_PER_ENV}" ] ; then TF_DATA_DIR_PER_ENV=${TF_DATA_DIR_PER_ENV:-} ; fi
-if [ -z "${HASHE_COMMAND}" ] ; then HASHE_COMMAND=${HASHE_COMMAND:-sha1sum} ; fi
+if [ -z "${HASH_COMMAND}" ] ; then HASH_COMMAND=${HASH_COMMAND:-sha1sum} ; fi
 
 # Set terraform version
 [ -e ./.terraform_executable ] && export TF_TERRAFORM_EXECUTABLE="$(cat .terraform_executable)"
@@ -83,12 +83,12 @@ if [ -z "${TF_STATE_BUCKET}" ]; then
     # Use hashed environment id to avoid account id/region disclosure via S3 DNS name
     # in this way it is hard to predict the bucket name and attacker won't be able to
     # setup buckets in advance to capture your state file
-    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASHE_COMMAND}" | awk '{print $1}')
+    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASH_COMMAND}" | awk '{print $1}')
     export TF_STATE_BUCKET="terraform-state-${HASHED_ENVIRONMENT_ID}"
 fi
 
 if [ -z "${TF_STATE_DYNAMODB_TABLE}" ]; then
-    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASHE_COMMAND}" | awk '{print $1}')
+    HASHED_ENVIRONMENT_ID=$(echo -n ${TF_ENVIRONMENT_ID} | "${HASH_COMMAND}" | awk '{print $1}')
     export TF_STATE_DYNAMODB_TABLE="terraform-state-${HASHED_ENVIRONMENT_ID}"
 fi
 
