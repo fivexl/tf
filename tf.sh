@@ -141,4 +141,4 @@ if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
 fi
 
 # execute terraform
-${TF_TERRAFORM_EXECUTABLE} ${TF_SH_VAR_FILE} $* ${TF_SH_OPTIONS}
+${TF_TERRAFORM_EXECUTABLE} $* ${TF_SH_VAR_FILE} ${TF_SH_OPTIONS}
