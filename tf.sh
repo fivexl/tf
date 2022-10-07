@@ -132,13 +132,13 @@ fi
 if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
     # If we are not applying saving plan, add -var-file
     if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
-        export TF_CLI_ARGS_plan="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
-        export TF_CLI_ARGS_import="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
-        export TF_CLI_ARGS_destroy="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
-        export TF_CLI_ARGS_refresh="-var-file=./${TF_ENVIRONMENT_ID}.tfvars"
+        export TF_SH_VAR_FILE="-var-file=./${TF_ENVIRONMENT_ID}.tfvars" && echo "Using variable file ${TF_SH_VAR_FILE}"    
         # If we are applying changes, do not ask for interactive approval. Work for any apply commands (-destroy, -refresh-only and etc)
-        export TF_CLI_ARGS_apply="-var-file=./${TF_ENVIRONMENT_ID}.tfvars -auto-approve"
+        if [ $1 == "apply" ]; then
+            export TF_SH_OPTIONS="-auto-approve -parallelism=${TF_PARALLELISM}"
+        fi
     fi
 fi
 
-${TF_TERRAFORM_EXECUTABLE} $*
+# execute terraform
+${TF_TERRAFORM_EXECUTABLE} $* ${TF_SH_VAR_FILE} ${TF_SH_OPTIONS}
