@@ -3,8 +3,6 @@
 set -e
 
 TF_PARALLELISM=${TF_PARALLELISM:-10}
-TF_STATE_BUCKET=${TF_STATE_BUCKET:-}
-TF_STATE_DYNAMODB_TABLE=${TF_STATE_DYNAMODB_TABLE:-}
 TF_TERRAFORM_EXECUTABLE=${TF_TERRAFORM_EXECUTABLE:-terraform}
 TF_ENVIRONMENT_ID=${TF_ENVIRONMENT_ID:-}
 TF_AUTO_APPLY_SAVED_PLAN=${TF_AUTO_APPLY_SAVED_PLAN:-}
@@ -18,6 +16,8 @@ if [ -f tf.sh.env ]; then
     export $(cat tf.sh.env | grep -v '#' | awk '/=/ {print $1}')
 fi
 
+if [ -z "${TF_STATE_BUCKET}" ]; then TF_STATE_BUCKET=${TF_STATE_BUCKET:-}; fi
+if [ -z "${TF_STATE_DYNAMODB_TABLE}" ]; then TF_STATE_DYNAMODB_TABLE=${TF_STATE_DYNAMODB_TABLE:-}; fi
 if [ -z "${TF_STATE_PATH}" ]; then TF_STATE_PATH=${TF_STATE_PATH:-}; fi
 if [ -z "${TF_STATE_FILE_NAME}" ]; then TF_STATE_FILE_NAME=${TF_STATE_FILE_NAME:-main.tfstate}; fi
 if [ -z "${TF_DATA_DIR_PER_ENV}" ]; then TF_DATA_DIR_PER_ENV=${TF_DATA_DIR_PER_ENV:-true}; fi
