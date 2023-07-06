@@ -41,7 +41,7 @@ if [ "$#" -eq 0 ] || [ "$*" == "-h" ] || [ "$*" == "-h" ]; then
     echo ""
     echo "tf will indentify your env based on current AWS account id and region"
     echo ""
-    echo "For apply saved plan please set TF_AUTO_APPLY_SAVED_PLAN variable with any value"
+    echo "To apply saved plan please set TF_AUTO_APPLY_SAVED_PLAN variable with any value"
     echo "Example:"
     echo "TF_AUTO_APPLY_SAVED_PLAN=true ./tf.sh apply plan.tfplan"
     echo ""
@@ -128,17 +128,24 @@ else
     echo "Skipping terraform backend initialization.."
 fi
 
-# figure out which env file to use
-if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
-    # If we are not applying saving plan, add -var-file
-    if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
-        export TF_SH_VAR_FILE="-var-file=./${TF_ENVIRONMENT_ID}.tfvars" && echo "Using variable file ${TF_SH_VAR_FILE}"    
-        # If we are applying changes, do not ask for interactive approval. Work for any apply commands (-destroy, -refresh-only and etc)
-        if [ $1 == "apply" ]; then
-            export TF_SH_OPTIONS="-auto-approve -parallelism=${TF_PARALLELISM}"
-        fi
+# If we are not applying saved plan, add -var-file
+if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
+    # if there is a tfvar file shared for the multiple regions - use it
+    if [ -e ./${AWS_ACCOUNT_ID}.tfvars ]; then
+        TF_SH_VAR_FILES="-var-file=./${AWS_ACCOUNT_ID}.tfvars "
+    fi
+    
+    # figure out which env file to use
+    if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
+        export TF_SH_VAR_FILES=${TF_SH_VAR_FILES}"-var-file=./${TF_ENVIRONMENT_ID}.tfvars" && echo "Using variable file(s) ${TF_SH_VAR_FILES}"    
+    fi
+    
+    # If we are applying changes, do not ask for interactive approval. Work for any apply commands (-destroy, -refresh-only and etc)
+    if [ $1 == "apply" ]; then
+        export TF_SH_OPTIONS="-auto-approve -parallelism=${TF_PARALLELISM}"
     fi
 fi
 
+
 # execute terraform
-${TF_TERRAFORM_EXECUTABLE} $* ${TF_SH_VAR_FILE} ${TF_SH_OPTIONS}
+${TF_TERRAFORM_EXECUTABLE} $* ${TF_SH_VAR_FILES} ${TF_SH_OPTIONS}
