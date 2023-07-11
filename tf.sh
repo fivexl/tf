@@ -3,6 +3,8 @@
 set -e
 
 TF_PARALLELISM=${TF_PARALLELISM:-10}
+TF_STATE_BUCKET=${TF_STATE_BUCKET:-}
+TF_STATE_DYNAMODB_TABLE=${TF_STATE_DYNAMODB_TABLE:-}
 TF_TERRAFORM_EXECUTABLE=${TF_TERRAFORM_EXECUTABLE:-terraform}
 TF_ENVIRONMENT_ID=${TF_ENVIRONMENT_ID:-}
 TF_AUTO_APPLY_SAVED_PLAN=${TF_AUTO_APPLY_SAVED_PLAN:-}
@@ -16,8 +18,6 @@ if [ -f tf.sh.env ]; then
     export $(cat tf.sh.env | grep -v '#' | awk '/=/ {print $1}')
 fi
 
-if [ -z "${TF_STATE_BUCKET}" ]; then TF_STATE_BUCKET=${TF_STATE_BUCKET:-}; fi
-if [ -z "${TF_STATE_DYNAMODB_TABLE}" ]; then TF_STATE_DYNAMODB_TABLE=${TF_STATE_DYNAMODB_TABLE:-}; fi
 if [ -z "${TF_STATE_PATH}" ]; then TF_STATE_PATH=${TF_STATE_PATH:-}; fi
 if [ -z "${TF_STATE_FILE_NAME}" ]; then TF_STATE_FILE_NAME=${TF_STATE_FILE_NAME:-main.tfstate}; fi
 if [ -z "${TF_DATA_DIR_PER_ENV}" ]; then TF_DATA_DIR_PER_ENV=${TF_DATA_DIR_PER_ENV:-true}; fi
@@ -41,7 +41,7 @@ if [ "$#" -eq 0 ] || [ "$*" == "-h" ] || [ "$*" == "-h" ]; then
     echo ""
     echo "tf will indentify your env based on current AWS account id and region"
     echo ""
-    echo "To apply saved plan please set TF_AUTO_APPLY_SAVED_PLAN variable with any value"
+    echo "For apply saved plan please set TF_AUTO_APPLY_SAVED_PLAN variable with any value"
     echo "Example:"
     echo "TF_AUTO_APPLY_SAVED_PLAN=true ./tf.sh apply plan.tfplan"
     echo ""
@@ -128,8 +128,9 @@ else
     echo "Skipping terraform backend initialization.."
 fi
 
-# If we are not applying saved plan, add -var-file
+# If we are not applying saving plan, add -var-file
 if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
+
     # if there is a tfvar file shared for the multiple regions - use it
     if [ -e ./${AWS_ACCOUNT_ID}.tfvars ]; then
         TF_SH_VAR_FILES="-var-file=./${AWS_ACCOUNT_ID}.tfvars "
@@ -139,13 +140,13 @@ if [ -z "${TF_AUTO_APPLY_SAVED_PLAN}" ]; then
     if [ -e ./${TF_ENVIRONMENT_ID}.tfvars ]; then
         export TF_SH_VAR_FILES=${TF_SH_VAR_FILES}"-var-file=./${TF_ENVIRONMENT_ID}.tfvars" && echo "Using variable file(s) ${TF_SH_VAR_FILES}"    
     fi
-    
+
+    export TF_CLI_ARGS_plan=${TF_SH_VAR_FILES}
+    export TF_CLI_ARGS_import=${TF_SH_VAR_FILES}
+    export TF_CLI_ARGS_destroy=${TF_SH_VAR_FILES}
+    export TF_CLI_ARGS_refresh=${TF_SH_VAR_FILES}
     # If we are applying changes, do not ask for interactive approval. Work for any apply commands (-destroy, -refresh-only and etc)
-    if [ $1 == "apply" ]; then
-        export TF_SH_OPTIONS="-auto-approve -parallelism=${TF_PARALLELISM}"
-    fi
+    export TF_CLI_ARGS_apply="${TF_SH_VAR_FILES} -auto-approve"
 fi
 
-
-# execute terraform
-${TF_TERRAFORM_EXECUTABLE} $* ${TF_SH_VAR_FILES} ${TF_SH_OPTIONS}
+${TF_TERRAFORM_EXECUTABLE} $*
